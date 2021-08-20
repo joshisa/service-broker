@@ -128,6 +128,15 @@ spec:
                                     description: Status is the status of the condition
                                       that must match e.g. "True"
                                     type: string
+                                  topLevelKey:
+                                    description: TopLevelKey is an arbitrary top field
+                                      key within status e.g. "State"
+                                    type: string
+                                  topLevelValue:
+                                    description: TopLevelValue is an expected value
+                                      associated with TopLevelKey to look for e.g.
+                                      "Online"
+                                    type: string
                                   type:
                                     description: Type is the type of the condition
                                       to look for e.g. "Available"
@@ -137,12 +146,18 @@ spec:
                                 - kind
                                 - name
                                 - namespace
-                                - status
-                                - type
                                 type: object
                               name:
                                 description: Name is a unique name for the readiness
                                   check for debugging purposes.
+                                type: string
+                              readinessScope:
+                                default: Conditions
+                                description: ReadinessScope defines what type of status
+                                  field structure to expect
+                                enum:
+                                - TopLevel
+                                - Conditions
                                 type: string
                               timeout:
                                 default: 1m
@@ -235,6 +250,15 @@ spec:
                                           description: Status is the status of the
                                             condition that must match e.g. "True"
                                           type: string
+                                        topLevelKey:
+                                          description: TopLevelKey is an arbitrary
+                                            top field key within status e.g. "State"
+                                          type: string
+                                        topLevelValue:
+                                          description: TopLevelValue is an expected
+                                            value associated with TopLevelKey to look
+                                            for e.g. "Online"
+                                          type: string
                                         type:
                                           description: Type is the type of the condition
                                             to look for e.g. "Available"
@@ -244,12 +268,18 @@ spec:
                                       - kind
                                       - name
                                       - namespace
-                                      - status
-                                      - type
                                       type: object
                                     name:
                                       description: Name is a unique name for the readiness
                                         check for debugging purposes.
+                                      type: string
+                                    readinessScope:
+                                      default: Conditions
+                                      description: ReadinessScope defines what type
+                                        of status field structure to expect
+                                      enum:
+                                      - TopLevel
+                                      - Conditions
                                       type: string
                                     timeout:
                                       default: 1m
@@ -325,6 +355,15 @@ spec:
                                     description: Status is the status of the condition
                                       that must match e.g. "True"
                                     type: string
+                                  topLevelKey:
+                                    description: TopLevelKey is an arbitrary top field
+                                      key within status e.g. "State"
+                                    type: string
+                                  topLevelValue:
+                                    description: TopLevelValue is an expected value
+                                      associated with TopLevelKey to look for e.g.
+                                      "Online"
+                                    type: string
                                   type:
                                     description: Type is the type of the condition
                                       to look for e.g. "Available"
@@ -334,12 +373,18 @@ spec:
                                 - kind
                                 - name
                                 - namespace
-                                - status
-                                - type
                                 type: object
                               name:
                                 description: Name is a unique name for the readiness
                                   check for debugging purposes.
+                                type: string
+                              readinessScope:
+                                default: Conditions
+                                description: ReadinessScope defines what type of status
+                                  field structure to expect
+                                enum:
+                                - TopLevel
+                                - Conditions
                                 type: string
                               timeout:
                                 default: 1m
@@ -432,6 +477,15 @@ spec:
                                           description: Status is the status of the
                                             condition that must match e.g. "True"
                                           type: string
+                                        topLevelKey:
+                                          description: TopLevelKey is an arbitrary
+                                            top field key within status e.g. "State"
+                                          type: string
+                                        topLevelValue:
+                                          description: TopLevelValue is an expected
+                                            value associated with TopLevelKey to look
+                                            for e.g. "Online"
+                                          type: string
                                         type:
                                           description: Type is the type of the condition
                                             to look for e.g. "Available"
@@ -441,12 +495,18 @@ spec:
                                       - kind
                                       - name
                                       - namespace
-                                      - status
-                                      - type
                                       type: object
                                     name:
                                       description: Name is a unique name for the readiness
                                         check for debugging purposes.
+                                      type: string
+                                    readinessScope:
+                                      default: Conditions
+                                      description: ReadinessScope defines what type
+                                        of status field structure to expect
+                                      enum:
+                                      - TopLevel
+                                      - Conditions
                                       type: string
                                     timeout:
                                       default: 1m

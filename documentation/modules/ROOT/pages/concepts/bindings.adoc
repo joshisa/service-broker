@@ -50,7 +50,8 @@ It may take time for volumes to be allocated, bound and then attached to a pod, 
 To solve this problem, the Service Broker allows you to specify readiness checks.
 These allow you to poll resources created as part of a service instance for actual readiness.
 For example a Kubernetes `Deployment` will report as available only when all of its pods are ready.
-Readiness checks allow the Service Broker API to declare a service instance creation as successful only when its underlying resources are available to be consumed by a client.
+Readiness checks allow the Service Broker API to declare a service instance creation as successful only when its underlying resources are available to be consumed by a client.  Readiness checks assume, by default, a conditions array found within the Kubernetes resource's `status` key.   It assumes that a `conditions` array exists which contains a `Status` and a `Type` that can be polled.  Unfortunately, the `status` key has a great deal of variance across Kubernetes projects. See https://maelvls.dev/kubernetes-conditions/#what-other-projects-do[here] for further discussion.  To provide greater flexibility, an optional `ReadinessScope` key can be defined using a value of `Conditions` or `TopLevel`.  `Conditions` is an explicit representation of the default Readiness Check behavior while `TopLevel` is a designation that allows a service broker configuration author to define a topLevel key name to be polled and a topLevel expected value that are both immediate children of the `status` key.  In this case, there is no expectation of a `conditions` array being present.          
+
 
 ==== Templates
 

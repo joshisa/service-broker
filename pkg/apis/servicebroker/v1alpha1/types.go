@@ -283,6 +283,18 @@ const (
 	RegistryScopeInstanceLocal RegistryScope = "InstanceLocal"
 )
 
+// ReadinessScope allows the user to configure where the readiness check will look.
+// +kubebuilder:validation:Enum=TopLevel;Conditions
+type ReadinessScope string
+
+const (
+	// ReadinessScopeTopLevel looks at a top-field key within the status section
+	ReadinessScopeTopLevel ReadinessScope = "TopLevel"
+
+	// ReadinessScopeConditions looks at the conditions objects within the status section
+	ReadinessScopeConditions ReadinessScope = "Conditions"
+)
+
 // ConfigurationBinding binds a service plan to a set of templates
 // required to realize that plan.
 type ConfigurationBinding struct {
@@ -388,6 +400,10 @@ type ConfigurationReadinessCheck struct {
 	// in order to determine whether a specific resource is ready.
 	Condition *ConfigurationReadinessCheckCondition `json:"condition,omitempty"`
 
+	// ReadinessScope defines what type of status field structure to expect
+	// +kubebuilder:default="Conditions"
+	ReadinessScope ReadinessScope `json:"readinessScope,omitempty"`
+
 	// Timeout is the timeout durations for this check.
 	// +kubebuilder:default="1m"
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
@@ -409,10 +425,20 @@ type ConfigurationReadinessCheckCondition struct {
 	// Name is the resource name to poll.
 	Name string `json:"name"`
 
+	// TopLevelKey is an arbitrary top field key within status e.g. "State"
+	//+kubebuilder:validation:Optional
+	TopLevelKey string `json:"topLevelKey"`
+
+	// TopLevelValue is an expected value associated with TopLevelKey to look for e.g. "Online"
+	//+kubebuilder:validation:Optional
+	TopLevelValue string `json:"topLevelValue"`
+
 	// Type is the type of the condition to look for e.g. "Available"
+	//+kubebuilder:validation:Optional
 	Type string `json:"type"`
 
 	// Status is the status of the condition that must match e.g. "True"
+	//+kubebuilder:validation:Optional
 	Status string `json:"status"`
 }
 

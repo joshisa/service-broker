@@ -92,6 +92,13 @@ var (
 		},
 	}
 
+	// topLevelResourceStatus allow the resource to pass the readiness checks
+	// defined for it.
+	topLevelResourceStatus = &corev1.PodStatus{
+		Message: "Running",
+		Reason:  "Success",
+	}
+
 	// IllegalTemplateName refers to a template for a non-existent resource
 	// type that can be used to simulate Kubernetes errors.
 	IllegalTemplateName = "illegal"
@@ -226,6 +233,82 @@ var (
 		},
 	}
 
+	basicWithNoScopeReadinessChecks = []v1.ConfigurationReadinessCheck{
+		{
+			Name: "pod-ready",
+			Condition: &v1.ConfigurationReadinessCheckCondition{
+				APIVersion: "v1",
+				Kind:       "Pod",
+				Namespace:  `{{ registry "namespace" }}`,
+				Name:       `{{ registry "instance-name" }}`,
+				Type:       "Ready",
+				Status:     "True",
+			},
+		},
+	}
+
+	basicWithScopeEmptyReadinessChecks = []v1.ConfigurationReadinessCheck{
+		{
+			Name:           "pod-ready",
+			ReadinessScope: "",
+			Condition: &v1.ConfigurationReadinessCheckCondition{
+				APIVersion: "v1",
+				Kind:       "Pod",
+				Namespace:  `{{ registry "namespace" }}`,
+				Name:       `{{ registry "instance-name" }}`,
+				Type:       "Ready",
+				Status:     "True",
+			},
+		},
+	}
+
+	basicWithScopeConditionsReadinessChecks = []v1.ConfigurationReadinessCheck{
+		{
+			Name:           "pod-ready",
+			ReadinessScope: "Conditions",
+			Condition: &v1.ConfigurationReadinessCheckCondition{
+				APIVersion: "v1",
+				Kind:       "Pod",
+				Namespace:  `{{ registry "namespace" }}`,
+				Name:       `{{ registry "instance-name" }}`,
+				Type:       "Ready",
+				Status:     "True",
+			},
+		},
+	}
+
+	// basicWithScopeTopLevelReadinessChecks are used to check the test resource created by our
+	// service instance is ready for a top-level field match condition
+	basicWithScopeTopLevelReadinessChecks = []v1.ConfigurationReadinessCheck{
+		{
+			Name:           "pod-ready",
+			ReadinessScope: "TopLevel",
+			Condition: &v1.ConfigurationReadinessCheckCondition{
+				APIVersion:    "v1",
+				Kind:          "Pod",
+				Namespace:     `{{ registry "namespace" }}`,
+				Name:          `{{ registry "instance-name" }}`,
+				TopLevelKey:   "Message",
+				TopLevelValue: "Running",
+			},
+		},
+	}
+
+	basicWithScopeBadValueReadinessChecks = []v1.ConfigurationReadinessCheck{
+		{
+			Name:           "pod-ready",
+			ReadinessScope: "NonValue",
+			Condition: &v1.ConfigurationReadinessCheckCondition{
+				APIVersion:    "v1",
+				Kind:          "Pod",
+				Namespace:     `{{ registry "namespace" }}`,
+				Name:          `{{ registry "instance-name" }}`,
+				TopLevelKey:   "Message",
+				TopLevelValue: "Running",
+			},
+		},
+	}
+
 	// basicSchema is schema for service instance validation with optional parameters.
 	basicSchema = &v1.Schemas{
 		ServiceInstance: &v1.ServiceInstanceSchema{
@@ -325,6 +408,86 @@ func BasicConfigurationWithReadiness() *v1.ServiceBrokerConfigSpec {
 	return configuration
 }
 
+// BasicConfigurationWithNoScopeReadiness returns the standard configuration with a readiness
+// check added for the resource that is templated.
+func BasicConfigurationWithNoScopeReadiness() *v1.ServiceBrokerConfigSpec {
+	configuration := BasicConfiguration()
+
+	checks := []v1.ConfigurationReadinessCheck{}
+
+	for _, check := range basicWithNoScopeReadinessChecks {
+		checks = append(checks, *check.DeepCopy())
+	}
+
+	configuration.Bindings[0].ServiceInstance.ReadinessChecks = checks
+
+	return configuration
+}
+
+// BasicConfigurationWithScopeEmptyReadiness returns the standard configuration with a readiness
+// check added for the resource that is templated.
+func BasicConfigurationWithScopeEmptyReadiness() *v1.ServiceBrokerConfigSpec {
+	configuration := BasicConfiguration()
+
+	checks := []v1.ConfigurationReadinessCheck{}
+
+	for _, check := range basicWithScopeEmptyReadinessChecks {
+		checks = append(checks, *check.DeepCopy())
+	}
+
+	configuration.Bindings[0].ServiceInstance.ReadinessChecks = checks
+
+	return configuration
+}
+
+// BasicConfigurationWithReadiness returns the standard configuration with a readiness
+// check added for the resource that is templated.
+func BasicConfigurationWithScopeConditionsReadiness() *v1.ServiceBrokerConfigSpec {
+	configuration := BasicConfiguration()
+
+	checks := []v1.ConfigurationReadinessCheck{}
+
+	for _, check := range basicWithScopeConditionsReadinessChecks {
+		checks = append(checks, *check.DeepCopy())
+	}
+
+	configuration.Bindings[0].ServiceInstance.ReadinessChecks = checks
+
+	return configuration
+}
+
+// BasicConfigurationWithScopeTopLevelReadiness returns the standard configuration with a readiness
+// check added for the resource that is templated.
+func BasicConfigurationWithScopeTopLevelReadiness() *v1.ServiceBrokerConfigSpec {
+	configuration := BasicConfiguration()
+
+	checks := []v1.ConfigurationReadinessCheck{}
+
+	for _, check := range basicWithScopeTopLevelReadinessChecks {
+		checks = append(checks, *check.DeepCopy())
+	}
+
+	configuration.Bindings[0].ServiceInstance.ReadinessChecks = checks
+
+	return configuration
+}
+
+// BasicConfigurationWithScopeBadValueReadiness returns the standard configuration with a readiness
+// check added for the resource that is templated.
+func BasicConfigurationWithScopeBadValueReadiness() *v1.ServiceBrokerConfigSpec {
+	configuration := BasicConfiguration()
+
+	checks := []v1.ConfigurationReadinessCheck{}
+
+	for _, check := range basicWithScopeBadValueReadinessChecks {
+		checks = append(checks, *check.DeepCopy())
+	}
+
+	configuration.Bindings[0].ServiceInstance.ReadinessChecks = checks
+
+	return configuration
+}
+
 // BasicSchema is schema for service instance create validation with optional parameters.
 func BasicSchema() *v1.Schemas {
 	return basicSchema.DeepCopy()
@@ -363,6 +526,23 @@ func BasicServiceBindingCreateRequest() *api.CreateServiceBindingRequest {
 // be fully unstructured, it's not clever enough to use a raw object type.
 func BasicResourceStatus(t *testing.T) interface{} {
 	raw, err := json.Marshal(basicResourceStatus)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var object interface{}
+	if err := json.Unmarshal(raw, &object); err != nil {
+		t.Fatal(err)
+	}
+
+	return object
+}
+
+// TopLevelResourceStatus returns the templated resource status that will fulfill the
+// readiness checks defined above.  The unstructured application code needs things to
+// be fully unstructured, it's not clever enough to use a raw object type.
+func TopLevelResourceStatus(t *testing.T) interface{} {
+	raw, err := json.Marshal(topLevelResourceStatus)
 	if err != nil {
 		t.Fatal(err)
 	}

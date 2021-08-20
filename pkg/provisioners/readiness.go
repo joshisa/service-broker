@@ -16,14 +16,17 @@ package provisioners
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	v1 "github.com/couchbase/service-broker/pkg/apis/servicebroker/v1alpha1"
 	"github.com/couchbase/service-broker/pkg/config"
 	"github.com/couchbase/service-broker/pkg/errors"
+	"github.com/couchbase/service-broker/pkg/log"
 	"github.com/couchbase/service-broker/pkg/operation"
 	"github.com/couchbase/service-broker/pkg/registry"
 	"github.com/couchbase/service-broker/pkg/util"
+	"github.com/golang/glog"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,7 +61,7 @@ func (e *conditionUnreadyError) Error() string {
 
 // conditionReady waits for a condition on a resource to report as ready.  Returns nil on success and
 // an error otherwise.
-func conditionReady(entry *registry.Entry, condition *v1.ConfigurationReadinessCheckCondition) error {
+func conditionReady(entry *registry.Entry, readinessScope v1.ReadinessScope, condition *v1.ConfigurationReadinessCheckCondition) error {
 	namespaceRaw, err := renderTemplateString(condition.Namespace, entry, nil)
 	if err != nil {
 		return err
@@ -105,39 +108,85 @@ func conditionReady(entry *registry.Entry, condition *v1.ConfigurationReadinessC
 		return err
 	}
 
-	conditions, ok, _ := unstructured.NestedSlice(object.Object, "status", "conditions")
-	if !ok {
-		return newConditionUnreadyError("resource %s/%s %s contains no status conditions", condition.APIVersion, condition.Kind, name)
-	}
+	//Assess readinessScope
+	switch readinessScope {
+	case "", v1.ReadinessScopeConditions:
+		// This is the default for backwards compatibility
+		glog.V(log.LevelDebug).Infof("ReadinessScope Default Mode Activated with a ReadinessScope Entry of '%s' ...", v1.ReadinessScopeConditions)
 
-	for _, c := range conditions {
-		o, ok := c.(map[string]interface{})
+		statusfield, ok, _ := unstructured.NestedSlice(object.Object, "status", "conditions")
 		if !ok {
-			return newConditionUnreadyError("resource %s/%s %s conditions are not objects", condition.APIVersion, condition.Kind, name)
+			glog.V(log.LevelDebug).Infof("Conditions Object '%s'", object.Object)
+			glog.V(log.LevelDebug).Infof("readinesscope statusfield == '%s'", statusfield)
+
+			return newConditionUnreadyError("resource %s/%s %s contains no status conditions", condition.APIVersion, condition.Kind, name)
 		}
 
-		t, ok, _ := unstructured.NestedString(o, "type")
+		for _, c := range statusfield {
+			o, ok := c.(map[string]interface{})
+			if !ok {
+				return newConditionUnreadyError("resource %s/%s %s conditions are not objects", condition.APIVersion, condition.Kind, name)
+			}
+
+			t, ok, _ := unstructured.NestedString(o, "type")
+			if !ok {
+				return newConditionUnreadyError("resource %s/%s %s conditions contains no type", condition.APIVersion, condition.Kind, name)
+			}
+
+			if t != condition.Type {
+				continue
+			}
+
+			status, ok, _ := unstructured.NestedString(o, "status")
+			if !ok {
+				return newConditionUnreadyError("resource %s/%s %s conditions contains no status", condition.APIVersion, condition.Kind, name)
+			}
+
+			if status != condition.Status {
+				return newConditionUnreadyError("resource %s/%s %s %s condition %s is, expected %s", condition.APIVersion, condition.Kind, name, condition.Type, status, condition.Status)
+			}
+
+			return nil
+		}
+
+	case v1.ReadinessScopeTopLevel:
+		// This is new to offer a way to look at a top-level key pair
+		glog.V(log.LevelDebug).Infof("ReadinessScope TopLevel Mode Activated with a ReadinessScope Entry of '%s' ...", v1.ReadinessScopeTopLevel)
+
+		// Regardless of User Capitalization on Top-Level key pair, Unstructured Objects always resolves keys in lower case
+		// However, values maintain their case.
+		lowerCaseTopLevelKey := strings.ToLower(condition.TopLevelKey)
+
+		statusfield, ok, _ := unstructured.NestedFieldNoCopy(object.Object, "status")
 		if !ok {
-			return newConditionUnreadyError("resource %s/%s %s conditions contains no type", condition.APIVersion, condition.Kind, name)
+			glog.V(log.LevelDebug).Infof("Object '%s'", object.Object)
+			glog.V(log.LevelDebug).Infof("readinesscope statusfield == '%s'", statusfield)
+			glog.V(log.LevelDebug).Infof("TopLevelKey == '%s' AND TopLevelValue == '%s'", lowerCaseTopLevelKey, condition.TopLevelValue)
+
+			return newConditionUnreadyError("resource status stanza does not exist. Looking for key pair %s: %s", lowerCaseTopLevelKey, condition.TopLevelValue)
 		}
 
-		if t != condition.Type {
-			continue
-		}
-
-		status, ok, _ := unstructured.NestedString(o, "status")
+		realtimevalue, ok, _ := unstructured.NestedString(object.Object, "status", lowerCaseTopLevelKey)
 		if !ok {
-			return newConditionUnreadyError("resource %s/%s %s conditions contains no status", condition.APIVersion, condition.Kind, name)
+			glog.V(log.LevelDebug).Infof("No realtime value found!!")
+			glog.V(log.LevelDebug).Infof("Object '%s'", object.Object)
+			glog.V(log.LevelDebug).Infof("TopLevelKey == '%s' AND TopLevelValue == '%s'", lowerCaseTopLevelKey, condition.TopLevelValue)
+
+			return newConditionUnreadyError("resource %s/%s %s conditions contains no root key value named %s", condition.APIVersion, condition.Kind, name, lowerCaseTopLevelKey)
 		}
 
-		if status != condition.Status {
-			return newConditionUnreadyError("resource %s/%s %s %s condition %s is, expected %s", condition.APIVersion, condition.Kind, name, condition.Type, status, condition.Status)
+		if realtimevalue != condition.TopLevelValue {
+			glog.V(log.LevelDebug).Infof("ReadinessScope RealtimeValue is '%s' AND given TopLevelValue is '%s' ...", realtimevalue, condition.TopLevelValue)
+			return newConditionUnreadyError("resource %s/%s %s %s condition %s is, expected %s", condition.APIVersion, condition.Kind, name, condition.Type, realtimevalue, condition.TopLevelValue)
 		}
 
 		return nil
+
+	default:
+		return fmt.Errorf("%w: readiness Scope %s is undefined", ErrResourceAttributeMissing, readinessScope)
 	}
 
-	return newConditionUnreadyError("resource %s/%s %s doesn't contain the condition %s", condition.APIVersion, condition.Kind, name, condition.Type)
+	return newConditionUnreadyError("resource %s/%s %s doesn't contain the status Readiness object expected for ReadinessScope %s", condition.APIVersion, condition.Kind, name, readinessScope)
 }
 
 // Ready processes any readiness checks and returns nil on success.  For now this is intended to
@@ -169,7 +218,7 @@ func Ready(t ResourceType, entry *registry.Entry, serviceID, planID string) erro
 	for _, readinessCheck := range templates.ReadinessChecks {
 		switch {
 		case readinessCheck.Condition != nil:
-			if err := conditionReady(entry, readinessCheck.Condition); err != nil {
+			if err := conditionReady(entry, readinessCheck.ReadinessScope, readinessCheck.Condition); err != nil {
 				return err
 			}
 		default:
@@ -185,7 +234,7 @@ func barrier(readinessCheck v1.ConfigurationReadinessCheck, entry *registry.Entr
 	doCheck := func() error {
 		switch {
 		case readinessCheck.Condition != nil:
-			if err := conditionReady(entry, readinessCheck.Condition); err != nil {
+			if err := conditionReady(entry, readinessCheck.ReadinessScope, readinessCheck.Condition); err != nil {
 				return err
 			}
 		default:

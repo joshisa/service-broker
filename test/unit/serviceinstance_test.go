@@ -187,7 +187,7 @@ func TestServiceInstancePoll(t *testing.T) {
 }
 
 // TestServiceInstancePollWithReadiness tests that a configuration with readiness checks
-// responds correctly.
+// original structure with no scope entry [backwards compatibility] responds correctly.
 func TestServiceInstancePollWithReadiness(t *testing.T) {
 	defer mustReset(t)
 
@@ -202,6 +202,78 @@ func TestServiceInstancePollWithReadiness(t *testing.T) {
 
 	fixtures.MustSetFixtureField(t, clients, fixtures.BasicResourceStatus(t), "status")
 
+	util.MustPollServiceInstanceForCompletion(t, fixtures.ServiceInstanceName, rsp)
+}
+
+// TestServiceInstancePollWithNoScopeReadiness tests that a configuration with readiness checks
+// scope missing entirely and yet responds correctly.
+func TestServiceInstancePollNoScopeReadiness(t *testing.T) {
+	defer mustReset(t)
+
+	util.MustReplaceBrokerConfig(t, clients, fixtures.BasicConfigurationWithNoScopeReadiness())
+
+	req := fixtures.BasicServiceInstanceCreateRequest()
+	rsp := util.MustCreateServiceInstance(t, fixtures.ServiceInstanceName, req)
+
+	poll := &api.PollServiceInstanceResponse{}
+	util.MustGet(t, util.ServiceInstancePollURI(fixtures.ServiceInstanceName, util.PollServiceInstanceQuery(nil, rsp)), http.StatusOK, poll)
+	util.Assert(t, poll.State == api.PollStateInProgress)
+
+	fixtures.MustSetFixtureField(t, clients, fixtures.BasicResourceStatus(t), "status")
+	util.MustPollServiceInstanceForCompletion(t, fixtures.ServiceInstanceName, rsp)
+}
+
+// TestServiceInstancePollWithScopeEmptyReadiness tests that a configuration with readiness checks
+// scope of "" [Empty String] responds correctly.
+func TestServiceInstancePollWithScopeEmptyReadiness(t *testing.T) {
+	defer mustReset(t)
+
+	util.MustReplaceBrokerConfig(t, clients, fixtures.BasicConfigurationWithScopeEmptyReadiness())
+
+	req := fixtures.BasicServiceInstanceCreateRequest()
+	rsp := util.MustCreateServiceInstance(t, fixtures.ServiceInstanceName, req)
+
+	poll := &api.PollServiceInstanceResponse{}
+	util.MustGet(t, util.ServiceInstancePollURI(fixtures.ServiceInstanceName, util.PollServiceInstanceQuery(nil, rsp)), http.StatusOK, poll)
+	util.Assert(t, poll.State == api.PollStateInProgress)
+
+	fixtures.MustSetFixtureField(t, clients, fixtures.BasicResourceStatus(t), "status")
+	util.MustPollServiceInstanceForCompletion(t, fixtures.ServiceInstanceName, rsp)
+}
+
+// TestServiceInstancePollWithScopeConditionsReadiness tests that a configuration with readiness checks
+// scope of "Conditions" responds correctly.
+func TestServiceInstancePollWithScopeConditionsReadiness(t *testing.T) {
+	defer mustReset(t)
+
+	util.MustReplaceBrokerConfig(t, clients, fixtures.BasicConfigurationWithScopeConditionsReadiness())
+
+	req := fixtures.BasicServiceInstanceCreateRequest()
+	rsp := util.MustCreateServiceInstance(t, fixtures.ServiceInstanceName, req)
+
+	poll := &api.PollServiceInstanceResponse{}
+	util.MustGet(t, util.ServiceInstancePollURI(fixtures.ServiceInstanceName, util.PollServiceInstanceQuery(nil, rsp)), http.StatusOK, poll)
+	util.Assert(t, poll.State == api.PollStateInProgress)
+
+	fixtures.MustSetFixtureField(t, clients, fixtures.BasicResourceStatus(t), "status")
+	util.MustPollServiceInstanceForCompletion(t, fixtures.ServiceInstanceName, rsp)
+}
+
+// TestServiceInstancePollWithScopeTopLevelReadiness tests that a configuration with readiness checks
+// scope of "TopLevel" responds correctly for a status with a top-level key pair.
+func TestServiceInstancePollWithScopeTopLevelReadiness(t *testing.T) {
+	defer mustReset(t)
+
+	util.MustReplaceBrokerConfig(t, clients, fixtures.BasicConfigurationWithScopeTopLevelReadiness())
+
+	req := fixtures.BasicServiceInstanceCreateRequest()
+	rsp := util.MustCreateServiceInstance(t, fixtures.ServiceInstanceName, req)
+
+	poll := &api.PollServiceInstanceResponse{}
+	util.MustGet(t, util.ServiceInstancePollURI(fixtures.ServiceInstanceName, util.PollServiceInstanceQuery(nil, rsp)), http.StatusOK, poll)
+	util.Assert(t, poll.State == api.PollStateInProgress)
+
+	fixtures.MustSetFixtureField(t, clients, fixtures.TopLevelResourceStatus(t), "status")
 	util.MustPollServiceInstanceForCompletion(t, fixtures.ServiceInstanceName, rsp)
 }
 
