@@ -70,11 +70,24 @@ Accessors do a simple lookup of a value from available data sources.
 
 The registry is described in detail in the next section.
 It is a typed key/value store.
-A registry source for name `foo` will return any value associated with the registry key `foo` as in the following example:
+A registry source for name `fool` will return any value associated with the registry key `fool` as in the following example:
 
 [source]
 ----
 {{ registry "fool" }}
+----
+
+==== ReadSecret
+
+The readSecret function enables data lookup from a named Kubernetes Secret. It returns a Base64 decoded, escaped string value.
+For a key named `target-key` found within a Kubernetes Secret named `secret-name` within a namespace named `target-namespace`,
+will return the base64 decoded, escaped value string associated with the key `target-key`.  The ability to read a Secret's key
+value pair can be useful when secrets are dynamically generated as a result of a prior resource provisioning process while
+containing data which could be useful to a consuming application that is parsing the broker's binding credentials payload.
+
+[source]
+----
+{{ readSecret "target-namespace" "secret-name" "target-key" }}
 ----
 
 ==== Parameter
@@ -105,7 +118,7 @@ A dynamic attribute of:
 {{ parameter "/size" }}
 ----
 
-would resolve to `"4"`.
+would resolve to `"16"`.
 
 A dynamic attribute of:
 

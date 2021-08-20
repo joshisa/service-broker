@@ -25,6 +25,7 @@ import (
 	"text/template/parse"
 	"time"
 
+	"github.com/couchbase/service-broker/pkg/config"
 	"github.com/couchbase/service-broker/pkg/errors"
 	"github.com/couchbase/service-broker/pkg/log"
 	"github.com/couchbase/service-broker/pkg/registry"
@@ -33,6 +34,9 @@ import (
 	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/go-openapi/jsonpointer"
 	"github.com/golang/glog"
+
+	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // templateFunctionRegistry looks up a registry value.
@@ -294,6 +298,18 @@ func templateFunctionGenerateCertificate(key, cn, lifetime, usage string, sans [
 	return value, nil
 }
 
+// templateFunctionReadSecret returns the data payload for the named secret.
+func templateFunctionReadSecret(secretnamespace, secretname, secretproperty string) (string, error) {
+	secret, err := config.Clients().Kubernetes().CoreV1().Secrets(secretnamespace).Get(secretname, metav1.GetOptions{})
+	if err != nil {
+		if !k8s_errors.IsNotFound(err) {
+			return "", err
+		}
+	}
+
+	return string(secret.Data[secretproperty]), nil
+}
+
 // templateFunctionRequired returns an error if the input is nil.
 func templateFunctionRequired(value interface{}) (interface{}, error) {
 	if value == nil {
@@ -425,6 +441,7 @@ func renderTemplateString(str string, entry *registry.Entry, data interface{}) (
 		"generatePetName":     templateFunctionGeneratePetName,
 		"generatePrivateKey":  templateFunctionGeneratePrivatekey,
 		"generateCertificate": templateFunctionGenerateCertificate,
+		"readSecret":          templateFunctionReadSecret,
 		"required":            templateFunctionRequired,
 		"default":             templateFunctionGenerateDefault,
 		"upper":               templateFunctionUpper,
